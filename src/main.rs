@@ -1,7 +1,7 @@
 use anyhow::format_err;
 use cargo::core::Workspace;
-use cargo_util::ProcessBuilder;
 use cargo::util::Config as CargoConfig;
+use cargo_util::ProcessBuilder;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use cargo::util::command_prelude::opt;

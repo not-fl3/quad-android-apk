@@ -141,48 +141,10 @@ fn build_apks(
             .cwd(&target_directory)
             .exec()?;
 
-        // Find or generate a debug keystore for signing the APK
-        // We use the same debug keystore as used by the Android SDK. If it does not exist,
-        // then we create it using keytool which is part of the JRE/JDK
-        let android_directory = dirs::home_dir()
-            .ok_or_else(|| format_err!("Unable to determine home directory"))?
-            .join(".android");
-        fs::create_dir_all(&android_directory)?;
-        let keystore_path = android_directory.join("debug.keystore");
-        if !keystore_path.exists() {
-            // Generate key
-            let keytool_filename = if cfg!(target_os = "windows") {
-                "keytool.exe"
-            } else {
-                "keytool"
-            };
-
-            let keytool_path = find_java_executable(keytool_filename)?;
-            ProcessBuilder::new(keytool_path)
-                .arg("-genkey")
-                .arg("-v")
-                .arg("-keystore")
-                .arg(&keystore_path)
-                .arg("-storepass")
-                .arg("android")
-                .arg("-alias")
-                .arg("androidebugkey")
-                .arg("-keypass")
-                .arg("android")
-                .arg("-dname")
-                .arg("CN=Android Debug,O=Android,C=US")
-                .arg("-keyalg")
-                .arg("RSA")
-                .arg("-keysize")
-                .arg("2048")
-                .arg("-validity")
-                .arg("10000")
-                .cwd(root_build_dir)
-                .exec()?;
-        }
-
-        if sign {
-            // Sign the APK with the development certificate
+        if let (Some(keystore_path), Some(keystore_password)) =
+            (&config.keystore_path, &config.keystore_password)
+        {
+            println!("Using custom keystore {:?}", keystore_path);
             util::script_process(
                 build_tools_path.join(format!("apksigner{}", util::EXECUTABLE_SUFFIX_BAT)),
             )
@@ -190,10 +152,65 @@ fn build_apks(
             .arg("--ks")
             .arg(keystore_path)
             .arg("--ks-pass")
-            .arg("pass:android")
+            .arg(&format!("pass:{}", keystore_password))
             .arg(&final_apk_path)
             .cwd(&target_directory)
             .exec()?;
+        } else {
+            // Find or generate a debug keystore for signing the APK
+            // We use the same debug keystore as used by the Android SDK. If it does not exist,
+            // then we create it using keytool which is part of the JRE/JDK
+            let android_directory = dirs::home_dir()
+                .ok_or_else(|| format_err!("Unable to determine home directory"))?
+                .join(".android");
+            fs::create_dir_all(&android_directory)?;
+            let keystore_path = android_directory.join("debug.keystore");
+            if !keystore_path.exists() {
+                // Generate key
+                let keytool_filename = if cfg!(target_os = "windows") {
+                    "keytool.exe"
+                } else {
+                    "keytool"
+                };
+
+                let keytool_path = find_java_executable(keytool_filename)?;
+                ProcessBuilder::new(keytool_path)
+                    .arg("-genkey")
+                    .arg("-v")
+                    .arg("-keystore")
+                    .arg(&keystore_path)
+                    .arg("-storepass")
+                    .arg("android")
+                    .arg("-alias")
+                    .arg("androidebugkey")
+                    .arg("-keypass")
+                    .arg("android")
+                    .arg("-dname")
+                    .arg("CN=Android Debug,O=Android,C=US")
+                    .arg("-keyalg")
+                    .arg("RSA")
+                    .arg("-keysize")
+                    .arg("2048")
+                    .arg("-validity")
+                    .arg("10000")
+                    .cwd(root_build_dir)
+                    .exec()?;
+            }
+
+            if sign {
+                // Sign the APK with the development certificate
+                util::script_process(
+                    build_tools_path.join(format!("apksigner{}", util::EXECUTABLE_SUFFIX_BAT)),
+                )
+                .arg("sign")
+                .arg("--ks")
+                .arg(keystore_path)
+                .arg("--ks-pass")
+                .arg("pass:android")
+                .arg(&final_apk_path)
+                .cwd(&target_directory)
+                .exec()?;
+            }
         }
         target_to_apk_map.insert(
             (target.kind().to_owned(), target.name().to_owned()),

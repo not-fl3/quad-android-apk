@@ -2,8 +2,8 @@ use super::BuildResult;
 use crate::config::AndroidConfig;
 use crate::ops::build;
 use cargo::core::Workspace;
-use cargo_util::ProcessBuilder;
 use cargo::util::CargoResult;
+use cargo_util::ProcessBuilder;
 use clap::ArgMatches;
 
 pub fn install(
