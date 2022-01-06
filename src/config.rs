@@ -47,6 +47,12 @@ pub struct AndroidConfig {
     /// Should we build in release mode?
     pub release: bool,
 
+    /// Keystore path
+    pub keystore_path: Option<PathBuf>,
+
+    /// Keystore password
+    pub keystore_password: Option<String>,
+
     /// Target configuration settings that are associated with a specific target
     default_target_config: TomlAndroidTarget,
 
@@ -394,6 +400,14 @@ pub fn load(
             target_configs.insert((TargetKind::ExampleBin, t.name.clone()), t.config.clone());
         });
 
+    let keystore_path = manifest_content
+        .as_ref()
+        .and_then(|a| a.keystore_path.as_ref())
+        .map(|p| workspace.root_manifest().parent().unwrap().join(p));
+    let keystore_password = manifest_content
+        .as_ref()
+        .and_then(|a| a.keystore_password.clone());
+
     // For the moment some fields of the config are dummies.
     Ok(AndroidConfig {
         cargo_package_name: package.name().to_string(),
@@ -418,6 +432,8 @@ pub fn load(
             }),
         default_target_config,
         target_configs,
+        keystore_path,
+        keystore_password,
     })
 }
 
@@ -457,6 +473,9 @@ struct TomlAndroid {
 
     bin: Option<Vec<TomlAndroidSpecificTarget>>,
     example: Option<Vec<TomlAndroidSpecificTarget>>,
+
+    keystore_path: Option<String>,
+    keystore_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -2,8 +2,8 @@ use crate::config::AndroidConfig;
 use crate::ops::install;
 use anyhow::format_err;
 use cargo::core::{TargetKind, Workspace};
-use cargo_util::ProcessBuilder;
 use cargo::util::CargoResult;
+use cargo_util::ProcessBuilder;
 use clap::ArgMatches;
 
 pub fn run(workspace: &Workspace, config: &AndroidConfig, options: &ArgMatches) -> CargoResult<()> {

@@ -67,6 +67,11 @@ fullscreen = false
 opengles_version_major = 3
 opengles_version_minor = 2
 
+# They keystore you want to sign your apks with. This has to be a path relative to this Cargo.toml.
+# If this is omitted, a new keystore is generated at $HOME/.android/debug.keystore and this will be used.
+keystore_path = "..."
+keystore_password = "..."
+
 # Adds extra arbitrary XML attributes to the <application> tag in the manifest.
 # See https://developer.android.com/guide/topics/manifest/application-element.html
 [package.metadata.android.application_attributes]
