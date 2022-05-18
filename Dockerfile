@@ -3,8 +3,8 @@ FROM rust:stretch
 RUN apt-get update
 RUN apt-get install -yq openjdk-8-jre unzip wget cmake
 
-RUN rustup toolchain install 1.56.0
-RUN rustup default 1.56
+RUN rustup toolchain install 1.58.0
+RUN rustup default 1.58
 RUN rustc --version
 
 RUN rustup target add armv7-linux-androideabi
