@@ -40,4 +40,14 @@ impl AndroidBuildTarget {
             AndroidBuildTarget::X86_64 => "x86_64-linux-android",
         }
     }
+
+    // Returns just the architecture component for clang
+    pub fn clang_arch(self) -> &'static str {
+        match self {
+            AndroidBuildTarget::ArmV7a => "arm",
+            AndroidBuildTarget::Arm64V8a => "aarch64",
+            AndroidBuildTarget::X86 => "i386",
+            AndroidBuildTarget::X86_64 => "x86_64",
+        }
+    }
 }

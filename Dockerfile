@@ -11,8 +11,8 @@ RUN apt-add-repository 'deb http://security.debian.org/debian-security stretch/u
 RUN apt-get update
 RUN apt-get install -yq openjdk-8-jre-headless openjdk-8-jdk-headless unzip wget cmake
 
-RUN rustup toolchain install 1.61.0
-RUN rustup default 1.61
+RUN rustup toolchain install 1.62.0
+RUN rustup default 1.62
 RUN rustc --version
 
 RUN rustup target add armv7-linux-androideabi
@@ -36,10 +36,10 @@ RUN ${ANDROID_HOME}/tools/bin/sdkmanager --update | grep -v = || true
 
 # Install Android NDK
 RUN cd /usr/local && \
-    wget -q http://dl.google.com/android/repository/android-ndk-r20-linux-x86_64.zip && \
-    unzip -q android-ndk-r20-linux-x86_64.zip && \
-    rm android-ndk-r20-linux-x86_64.zip
-ENV NDK_HOME /usr/local/android-ndk-r20
+    wget -q http://dl.google.com/android/repository/android-ndk-r25-linux.zip && \
+    unzip -q android-ndk-r25-linux.zip && \
+    rm android-ndk-r25-linux.zip
+ENV NDK_HOME /usr/local/android-ndk-r25
 
 # Copy contents to container. Should only use this on a clean directory
 COPY . /root/cargo-apk

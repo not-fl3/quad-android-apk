@@ -241,7 +241,6 @@ fn build_apks(
             .arg("1.7")
             .arg("-Xlint:deprecation")
             .arg("-bootclasspath")
-            // TODO: fix hardcoded path!
             .arg(rt_jar_path)
             .arg("-classpath")
             .arg(&classpath)

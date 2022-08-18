@@ -129,11 +129,10 @@ pub fn find_clang_cpp(
 
 // Returns path to ar.
 pub fn find_ar(config: &AndroidConfig, build_target: AndroidBuildTarget) -> CargoResult<PathBuf> {
-    let ar_path = llvm_toolchain_root(config).join("bin").join(format!(
-        "{}-ar{}",
-        build_target.ndk_triple(),
-        EXECUTABLE_SUFFIX_EXE
-    ));
+    // NDK r23 renamed <ndk_llvm_triple>-ar to llvm-ar
+    let ar_path = llvm_toolchain_root(config)
+        .join("bin")
+        .join(format!("llvm-ar{}", EXECUTABLE_SUFFIX_EXE));
     if ar_path.exists() {
         Ok(ar_path)
     } else {
@@ -149,17 +148,44 @@ pub fn find_readelf(
     config: &AndroidConfig,
     build_target: AndroidBuildTarget,
 ) -> CargoResult<PathBuf> {
-    let readelf_path = llvm_toolchain_root(config).join("bin").join(format!(
-        "{}-readelf{}",
-        build_target.ndk_triple(),
-        EXECUTABLE_SUFFIX_EXE
-    ));
+    // NDK r23 renamed <ndk_llvm_triple>-readelf to llvm-readelf
+    let readelf_path = llvm_toolchain_root(config)
+        .join("bin")
+        .join(format!("llvm-readelf{}", EXECUTABLE_SUFFIX_EXE));
     if readelf_path.exists() {
         Ok(readelf_path)
     } else {
         Err(format_err!(
             "Unable to find readelf at `{}`",
             readelf_path.to_string_lossy()
+        ))
+    }
+}
+
+// Returns dir to libunwind.a for the correct architecture
+// e.g. ...llvm/prebuilt/linux-x86_64/lib64/clang/14.0.6/lib/linux/i386
+pub fn find_libunwind_dir(
+    config: &AndroidConfig,
+    build_target: AndroidBuildTarget,
+) -> CargoResult<PathBuf> {
+    let libunwind_dir = llvm_toolchain_root(config).join("lib64").join("clang");
+    let clang_ver = libunwind_dir
+        .read_dir()?
+        .next()
+        .expect("Should be at least one clang version")?
+        .file_name();
+    let libunwind_dir = libunwind_dir
+        .join(clang_ver)
+        .join("lib")
+        .join("linux")
+        .join(build_target.clang_arch());
+
+    if libunwind_dir.join("libunwind.a").exists() {
+        Ok(libunwind_dir)
+    } else {
+        Err(format_err!(
+            "Unable to find libunwind.a at `{}`",
+            libunwind_dir.to_string_lossy()
         ))
     }
 }

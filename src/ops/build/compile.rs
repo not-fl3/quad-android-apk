@@ -246,9 +246,10 @@ impl Executor for SharedLibraryExecutor {
 
             // Determine paths
             let tool_root = util::llvm_toolchain_root(&self.config);
-            let linker_path = tool_root
-                .join("bin")
-                .join(format!("{}-ld", &self.build_target.ndk_triple()));
+
+            // NDK r23 renamed <ndk_llvm_triple>-ld to ld
+            let linker_path = tool_root.join("bin").join("ld");
+
             let sysroot = tool_root.join("sysroot");
             let version_independent_libraries_path = sysroot
                 .join("usr")
@@ -258,10 +259,6 @@ impl Executor for SharedLibraryExecutor {
                 util::find_ndk_path(self.config.min_sdk_version, |platform| {
                     version_independent_libraries_path.join(platform.to_string())
                 })?;
-            let gcc_lib_path = tool_root
-                .join("lib/gcc")
-                .join(&self.build_target.ndk_triple())
-                .join("4.9.x");
 
             // Add linker arguments
             // Specify linker
@@ -282,8 +279,17 @@ impl Executor for SharedLibraryExecutor {
                 &version_independent_libraries_path,
             ));
 
-            // Add path to folder containing libgcc.a to search path
-            new_args.push(build_arg("-Clink-arg=-L", gcc_lib_path));
+            // Add path containing libgcc.a and libunwind.a for linker to search.
+            // See https://github.com/rust-lang/rust/pull/85806 for discussion on libgcc.
+            // The workaround to get to NDK r23 or newer is to create a libgcc.a file with
+            // the contents of 'INPUT(-lunwind)' to link in libunwind.a instead of libgcc.a
+            let libgcc_dir = build_path.join("_libgcc_");
+            fs::create_dir_all(&libgcc_dir)?;
+            let libgcc = libgcc_dir.join("libgcc.a");
+            std::fs::write(&libgcc, "INPUT(-lunwind)")?;
+            new_args.push(build_arg("-Clink-arg=-L", libgcc_dir));
+            let libunwind_dir = util::find_libunwind_dir(&self.config, self.build_target)?;
+            new_args.push(build_arg("-Clink-arg=-L", libunwind_dir));
 
             // Strip symbols for release builds
             if self.nostrip == false {
