@@ -11,8 +11,8 @@ RUN apt-add-repository 'deb http://security.debian.org/debian-security stretch/u
 RUN apt-get update
 RUN apt-get install -yq openjdk-8-jre-headless openjdk-8-jdk-headless unzip wget cmake
 
-RUN rustup toolchain install 1.64.0
-RUN rustup default 1.64
+RUN rustup toolchain install 1.65.0
+RUN rustup default 1.65
 RUN rustc --version
 
 RUN rustup target add armv7-linux-androideabi
