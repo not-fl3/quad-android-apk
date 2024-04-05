@@ -120,7 +120,7 @@ impl Executor for SharedLibraryExecutor {
         if mode == CompileMode::Build
             && (target.kind() == &TargetKind::Bin || target.kind() == &TargetKind::ExampleBin)
         {
-            let mut new_args = cmd.get_args().to_owned();
+            let mut new_args: Vec<_> = cmd.get_args().cloned().collect();
 
             let target_config = self
                 .config
@@ -393,7 +393,7 @@ impl Executor for SharedLibraryExecutor {
             // This occurs when --all-targets is specified
             eprintln!("Ignoring CompileMode::Test for target: {}", target.name());
         } else if mode == CompileMode::Build {
-            let mut new_args = cmd.get_args().to_owned();
+            let mut new_args: Vec<_> = cmd.get_args().cloned().collect();
 
             //
             // Change crate-type from cdylib to rlib
@@ -466,9 +466,9 @@ fn list_android_dylibs(version_specific_libraries_path: &Path) -> CargoResult<Ha
 }
 
 /// Get native library search paths from rustc args
-fn libs_search_paths_from_args(args: &[std::ffi::OsString]) -> Vec<PathBuf> {
+fn libs_search_paths_from_args<'a>(args: impl Iterator<Item=&'a std::ffi::OsString>) -> Vec<PathBuf> {
     let mut is_search_path = false;
-    args.iter()
+    args
         .filter_map(|arg| {
             if is_search_path {
                 is_search_path = false;
