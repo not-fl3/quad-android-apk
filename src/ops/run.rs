@@ -2,22 +2,22 @@ use crate::config::AndroidConfig;
 use crate::ops::install;
 use anyhow::format_err;
 use cargo::core::{TargetKind, Workspace};
-use cargo_util::ProcessBuilder;
 use cargo::util::CargoResult;
+use cargo_util::ProcessBuilder;
 use clap::ArgMatches;
 
 pub fn run(workspace: &Workspace, config: &AndroidConfig, options: &ArgMatches) -> CargoResult<()> {
     let build_result = install::install(workspace, config, options)?;
 
     // Determine the target that should be executed
-    let requested_target = if options.is_present("example") && options.is_present("bin") {
+    let requested_target = if options.get_flag("example") && options.get_flag("bin") {
         return Err(format_err!(
             "Specifying both example and bin targets is not supported"
         ));
-    } else if let Some(bin) = options.value_of("bin") {
-        (TargetKind::Bin, bin.to_owned())
-    } else if let Some(example) = options.value_of("example") {
-        (TargetKind::ExampleBin, example.to_owned())
+    } else if let Some(bin) = options.get_one::<String>("bin") {
+        (TargetKind::Bin, bin.clone())
+    } else if let Some(example) = options.get_one::<String>("example") {
+        (TargetKind::ExampleBin, example.clone())
     } else {
         match build_result.target_to_apk_map.len() {
             1 => build_result
@@ -45,12 +45,9 @@ pub fn run(workspace: &Workspace, config: &AndroidConfig, options: &ArgMatches) 
 
     // Found it by doing this :
     //     adb shell "cmd package resolve-activity --brief com.author.myproject | tail -n 1"
-    let activity_path = format!(
-        "{}/.MainActivity",
-        package_name.replace("-", "_"),
-    );
+    let activity_path = format!("{}/.MainActivity", package_name.replace("-", "_"),);
 
-    drop(writeln!(workspace.config().shell().err(), "Running apk"));
+    drop(writeln!(workspace.gctx().shell().err(), "Running apk"));
     ProcessBuilder::new(&adb)
         .arg("shell")
         .arg("am")

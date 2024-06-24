@@ -48,7 +48,7 @@ pub fn build(
         &root_build_dir,
         &miniquad_root_path,
     )?;
-    let sign = !options.is_present("nosign");
+    let sign = !options.get_flag("nosign");
 
     build_apks(
         config,
@@ -268,8 +268,7 @@ fn build_apks(
         }
         // otherwise "Type `java.lang.System` was not found" error
         d8_cmd.arg("--no-desugaring");
-        d8_cmd.arg("--min-api")
-            .arg("26");
+        d8_cmd.arg("--min-api").arg("26");
 
         d8_cmd.cwd(&target_directory).exec()?;
 

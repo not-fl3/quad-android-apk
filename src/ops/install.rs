@@ -2,8 +2,8 @@ use super::BuildResult;
 use crate::config::AndroidConfig;
 use crate::ops::build;
 use cargo::core::Workspace;
-use cargo_util::ProcessBuilder;
 use cargo::util::CargoResult;
+use cargo_util::ProcessBuilder;
 use clap::ArgMatches;
 
 pub fn install(
@@ -17,7 +17,7 @@ pub fn install(
 
     for apk_path in build_result.target_to_apk_map.values() {
         drop(writeln!(
-            workspace.config().shell().err(),
+            workspace.gctx().shell().err(),
             "Installing apk '{}' to the device",
             apk_path.file_name().unwrap().to_string_lossy()
         ));

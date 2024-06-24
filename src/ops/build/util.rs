@@ -214,11 +214,11 @@ pub fn find_package_root_path(
         compiler::CompileTarget::new(first_build_target.rust_triple()).unwrap(),
     )];
 
-    let target_data = compiler::RustcTargetData::new(&workspace, &requested_kinds[..]).unwrap();
+    let mut target_data = compiler::RustcTargetData::new(&workspace, &requested_kinds[..]).unwrap();
     let cli_features = resolver::CliFeatures::new_all(false);
     let ws_resolve = cargo::ops::resolve_ws_with_opts(
         &workspace,
-        &target_data,
+        &mut target_data,
         &requested_kinds,
         &cli_features,
         &specs,
@@ -311,11 +311,11 @@ pub fn collect_java_files(workspace: &Workspace, config: &AndroidConfig) -> Java
         compiler::CompileTarget::new(first_build_target.rust_triple()).unwrap(),
     )];
 
-    let target_data = compiler::RustcTargetData::new(&workspace, &requested_kinds[..]).unwrap();
+    let mut target_data = compiler::RustcTargetData::new(&workspace, &requested_kinds[..]).unwrap();
     let cli_features = resolver::CliFeatures::new_all(false);
     let ws_resolve = cargo::ops::resolve_ws_with_opts(
         &workspace,
-        &target_data,
+        &mut target_data,
         &requested_kinds,
         &cli_features,
         &specs,

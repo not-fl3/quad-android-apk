@@ -2,23 +2,22 @@
 
 use anyhow::format_err;
 use cargo::core::Workspace;
+use cargo::util::{
+    command_prelude::{opt, ArgMatchesExt, CommandExt},
+    GlobalContext,
+};
 use cargo_util::ProcessBuilder;
-use cargo::util::Config as CargoConfig;
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-
-use cargo::util::command_prelude::opt;
-use cargo::util::command_prelude::AppExt;
-use cargo::util::command_prelude::ArgMatchesExt;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 
 mod config;
 mod ops;
 
 fn main() {
-    let mut cargo_config = CargoConfig::default().unwrap();
+    let mut cargo_gctx = GlobalContext::default().unwrap();
 
-    let args = match cli().get_matches_safe() {
+    let args = match cli().try_get_matches() {
         Ok(args) => args,
-        Err(err) => cargo::exit_with_error(err.into(), &mut *cargo_config.shell()),
+        Err(err) => cargo::exit_with_error(err.into(), &mut *cargo_gctx.shell()),
     };
 
     let args = match args.subcommand() {
@@ -34,91 +33,113 @@ fn main() {
         }
     };
 
-    let arg_target_dir = &subcommand_args.value_of_path("target-dir", &cargo_config);
+    let arg_target_dir = &subcommand_args.value_of_path("target-dir", &cargo_gctx);
 
-    cargo_config
+    cargo_gctx
         .configure(
-            args.occurrences_of("verbose") as u32,
-            args.is_present("quiet"),
-            args.value_of("color"),
-            args.is_present("frozen"),
-            args.is_present("locked"),
-            args.is_present("offline"),
+            args.get_count("verbose") as u32,
+            args.get_flag("quiet"),
+            args.get_one::<String>("color").map(|s| s.as_str()),
+            args.get_flag("frozen"),
+            args.get_flag("locked"),
+            args.get_flag("offline"),
             arg_target_dir,
             &args
-                .values_of_lossy("unstable-features")
-                .unwrap_or_default(),
+                .get_many::<String>("unstable-features")
+                .unwrap_or_default()
+                .cloned()
+                .collect::<Vec<String>>(),
             &[],
         )
         .unwrap();
 
     let err = match command {
-        "build" => execute_build(&subcommand_args, &cargo_config),
-        "install" => execute_install(&subcommand_args, &cargo_config),
-        "run" => execute_run(&subcommand_args, &cargo_config),
-        "logcat" => execute_logcat(&subcommand_args, &cargo_config),
+        "build" => execute_build(&subcommand_args, &cargo_gctx),
+        "install" => execute_install(&subcommand_args, &cargo_gctx),
+        "run" => execute_run(&subcommand_args, &cargo_gctx),
+        "logcat" => execute_logcat(&subcommand_args, &cargo_gctx),
         _ => cargo::exit_with_error(
             format_err!(
                 "Expected `build`, `install`, `run`, or `logcat`. Got {}",
                 command
             )
             .into(),
-            &mut *cargo_config.shell(),
+            &mut *cargo_gctx.shell(),
         ),
     };
 
     match err {
         Ok(_) => (),
-        Err(err) => cargo::exit_with_error(err, &mut *cargo_config.shell()),
+        Err(err) => cargo::exit_with_error(err, &mut *cargo_gctx.shell()),
     }
 }
 
-fn cli() -> App<'static> {
-    App::new("cargo-apk")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::AllowExternalSubcommands,
-        ])
+fn cli() -> Command {
+    Command::new("cargo-apk")
         .arg(
-            opt(
-                "verbose",
-                "Use verbose output (-vv very verbose/build.rs output)",
-            )
-            .short('v')
-            .global(true),
+            Arg::new("verbose")
+                .long("verbose")
+                .short('v')
+                .help("Use verbose output (-vv very verbose/build.rs output)")
+                .global(true)
+                .action(ArgAction::Count),
         )
-        .arg(opt("quiet", "No output printed to stdout").short('q'))
+        .arg(
+            Arg::new("quiet")
+                .long("quiet")
+                .short('q')
+                .help("No output printed to stdout")
+                .action(ArgAction::SetTrue)
+                .global(true),
+        )
         .arg(
             opt("color", "Coloring: auto, always, never")
                 .value_name("WHEN")
                 .global(true),
         )
-        .arg(opt("frozen", "Require Cargo.lock and cache are up to date").global(true))
-        .arg(opt("locked", "Require Cargo.lock is up to date").global(true))
-        .arg(opt("offline", "Run without accessing the network").global(true))
         .arg(
-            Arg::with_name("unstable-features")
+            Arg::new("frozen")
+                .long("frozen")
+                .help("Require Cargo.lock and cache are up to date")
+                .action(ArgAction::SetTrue)
+                .global(true),
+        )
+        .arg(
+            Arg::new("locked")
+                .long("locked")
+                .help("Require Cargo.lock is up to date")
+                .action(ArgAction::SetTrue)
+                .global(true),
+        )
+        .arg(
+            Arg::new("offline")
+                .long("offline")
+                .help("Run without accessing the network")
+                .action(ArgAction::SetTrue)
+                .global(true),
+        )
+        .arg(
+            Arg::new("unstable-features")
                 .help("Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details")
                 .short('Z')
                 .value_name("FLAG")
-                .multiple(true)
+                .action(ArgAction::Append)
                 .number_of_values(1)
                 .global(true),
         )
         .arg(
-            opt(
-                "nosign",
-                "Skip \"apksigner\" build step to produced unsigned APK.",
-            )
-            .global(true),
+            Arg::new("nosign")
+                .long("nosign")
+                .help("Skip \"apksigner\" build step to produced unsigned APK.")
+                .action(ArgAction::SetTrue)
+                .global(true),
         )
         .arg(
-            opt(
-                "nostrip",
-                "Skip \"striop\" build step, to keep debug symbols even in release builds.",
-            )
-            .global(true),
+            Arg::new("nostrip")
+                .long("nostrip")
+                .help("Skip \"striop\" build step, to keep debug symbols even in release builds.")
+                .action(ArgAction::SetTrue)
+                .global(true),
         )
         .subcommands(vec![
             cli_apk(),
@@ -129,24 +150,14 @@ fn cli() -> App<'static> {
         ])
 }
 
-fn cli_apk() -> App<'static> {
-    SubCommand::with_name("quad-apk")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
+fn cli_apk() -> Command {
+    Command::new("quad-apk")
         .about("dummy subcommand to allow for calling cargo apk instead of cargo-apk")
         .subcommands(vec![cli_build(), cli_install(), cli_run(), cli_logcat()])
 }
 
-fn cli_build() -> App<'static> {
-    SubCommand::with_name("build")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
+fn cli_build() -> Command {
+    Command::new("build")
         .alias("b")
         .about("Compile a local package and all of its dependencies")
         .arg_package_spec(
@@ -189,15 +200,14 @@ the --release flag will use the `release` profile instead.
         )
 }
 
-fn cli_install() -> App<'static> {
-    SubCommand::with_name("install")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
+fn cli_install() -> Command {
+    Command::new("install")
         .about("Install a Rust binary")
-        .arg(Arg::with_name("crate").empty_values(false).multiple(true))
+        .arg(
+            Arg::new("crate")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .action(ArgAction::Append),
+        )
         .arg(
             opt("version", "Specify a version to install from crates.io")
                 .alias("vers")
@@ -264,17 +274,12 @@ continuous integration systems.",
         )
 }
 
-fn cli_run() -> App<'static> {
-    SubCommand::with_name("run")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
+fn cli_run() -> Command {
+    Command::new("run")
         .alias("r")
-        .setting(AppSettings::TrailingVarArg)
+        .trailing_var_arg(true)
         .about("Run the main binary of the local package (src/main.rs)")
-        .arg(Arg::with_name("args").multiple(true))
+        .arg(Arg::new("args").action(ArgAction::Append))
         .arg_targets_bin_example(
             "Name of the bin target to run",
             "Name of the example target to run",
@@ -301,77 +306,60 @@ run. If you're passing arguments to both Cargo and the binary, the ones after
         )
 }
 
-fn cli_logcat() -> App<'static> {
-    SubCommand::with_name("logcat")
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
+fn cli_logcat() -> Command {
+    Command::new("logcat")
         .alias("r")
         .about("Print Android log")
         .arg_message_format()
 }
 
-pub fn execute_build(options: &ArgMatches, cargo_config: &CargoConfig) -> cargo::CliResult {
-    let root_manifest = options.root_manifest(&cargo_config)?;
+pub fn execute_build(options: &ArgMatches, cargo_gctx: &GlobalContext) -> cargo::CliResult {
+    let root_manifest = options.root_manifest(&cargo_gctx)?;
 
-    let workspace = Workspace::new(&root_manifest, &cargo_config)?;
+    let workspace = Workspace::new(&root_manifest, &cargo_gctx)?;
 
-    let mut android_config = config::load(
-        &workspace,
-        &options.value_of("package").map(|s| s.to_owned()),
-    )?;
-    android_config.release = options.is_present("release");
+    let mut android_config =
+        config::load(&workspace, &options.get_one::<String>("package").cloned())?;
+    android_config.release = options.get_flag("release");
 
     ops::build(&workspace, &android_config, &options)?;
     Ok(())
 }
 
-pub fn execute_install(options: &ArgMatches, cargo_config: &CargoConfig) -> cargo::CliResult {
-    let root_manifest = options.root_manifest(&cargo_config)?;
+pub fn execute_install(options: &ArgMatches, cargo_gctx: &GlobalContext) -> cargo::CliResult {
+    let root_manifest = options.root_manifest(&cargo_gctx)?;
 
-    let workspace = Workspace::new(&root_manifest, &cargo_config)?;
+    let workspace = Workspace::new(&root_manifest, &cargo_gctx)?;
 
-    let mut android_config = config::load(
-        &workspace,
-        &options.value_of("package").map(|s| s.to_owned()),
-    )?;
-    android_config.release = !options.is_present("debug");
+    let mut android_config =
+        config::load(&workspace, &options.get_one::<String>("package").cloned())?;
+    android_config.release = !options.get_flag("debug");
 
     ops::install(&workspace, &android_config, &options)?;
     Ok(())
 }
 
-pub fn execute_run(options: &ArgMatches, cargo_config: &CargoConfig) -> cargo::CliResult {
-    let root_manifest = options.root_manifest(&cargo_config)?;
+pub fn execute_run(options: &ArgMatches, cargo_gctx: &GlobalContext) -> cargo::CliResult {
+    let root_manifest = options.root_manifest(&cargo_gctx)?;
 
-    let workspace = Workspace::new(&root_manifest, &cargo_config)?;
+    let workspace = Workspace::new(&root_manifest, &cargo_gctx)?;
 
-    let mut android_config = config::load(
-        &workspace,
-        &options.value_of("package").map(|s| s.to_owned()),
-    )?;
-    android_config.release = options.is_present("release");
+    let mut android_config =
+        config::load(&workspace, &options.get_one::<String>("package").cloned())?;
+    android_config.release = options.get_flag("release");
 
     ops::run(&workspace, &android_config, &options)?;
     Ok(())
 }
 
-pub fn execute_logcat(options: &ArgMatches, cargo_config: &CargoConfig) -> cargo::CliResult {
-    let root_manifest = options.root_manifest(&cargo_config)?;
+pub fn execute_logcat(options: &ArgMatches, cargo_gctx: &GlobalContext) -> cargo::CliResult {
+    let root_manifest = options.root_manifest(&cargo_gctx)?;
 
-    let workspace = Workspace::new(&root_manifest, &cargo_config)?;
+    let workspace = Workspace::new(&root_manifest, &cargo_gctx)?;
 
-    let android_config = config::load(
-        &workspace,
-        &options.value_of("package").map(|s| s.to_owned()),
-    )?;
+    let android_config = config::load(&workspace, &options.get_one::<String>("package").cloned())?;
 
-    drop(writeln!(
-        workspace.config().shell().err(),
-        "Starting logcat"
-    ));
+    drop(writeln!(workspace.gctx().shell().err(), "Starting logcat"));
     let adb = android_config.sdk_path.join("platform-tools/adb");
     ProcessBuilder::new(&adb).arg("logcat").exec()?;
 

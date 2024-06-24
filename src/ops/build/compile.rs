@@ -62,7 +62,7 @@ pub fn build_shared_libraries(
 
         // Configure compilation options so that we will build the desired build_target
         let mut opts = options.compile_options(
-            workspace.config(),
+            workspace.gctx(),
             CompileMode::Build,
             Some(&workspace),
             ProfileChecking::Custom,
@@ -73,7 +73,7 @@ pub fn build_shared_libraries(
 
         // Create executor
         let config = Arc::new(config.clone());
-        let nostrip = options.is_present("nostrip");
+        let nostrip = options.get_flag("nostrip");
         let executor: Arc<dyn Executor> = Arc::new(SharedLibraryExecutor {
             config: Arc::clone(&config),
             build_target_dir: build_target_dir.clone(),
@@ -120,7 +120,7 @@ impl Executor for SharedLibraryExecutor {
         if mode == CompileMode::Build
             && (target.kind() == &TargetKind::Bin || target.kind() == &TargetKind::ExampleBin)
         {
-            let mut new_args = cmd.get_args().to_owned();
+            let mut new_args = cmd.get_args().cloned().collect::<Vec<_>>();
 
             let target_config = self
                 .config
@@ -331,7 +331,8 @@ impl Executor for SharedLibraryExecutor {
             let readelf_path = util::find_readelf(&self.config, self.build_target)?;
 
             // Gets libraries search paths from compiler
-            let mut libs_search_paths = libs_search_paths_from_args(cmd.get_args());
+            let mut libs_search_paths =
+                libs_search_paths_from_args(&cmd.get_args().cloned().collect::<Vec<_>>());
 
             // Add path for searching version independent libraries like 'libc++_shared.so'
             libs_search_paths.push(version_independent_libraries_path);
@@ -393,7 +394,7 @@ impl Executor for SharedLibraryExecutor {
             // This occurs when --all-targets is specified
             eprintln!("Ignoring CompileMode::Test for target: {}", target.name());
         } else if mode == CompileMode::Build {
-            let mut new_args = cmd.get_args().to_owned();
+            let mut new_args: Vec<_> = cmd.get_args().cloned().collect();
 
             //
             // Change crate-type from cdylib to rlib
