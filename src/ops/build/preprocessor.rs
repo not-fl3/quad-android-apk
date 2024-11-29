@@ -1,7 +1,12 @@
 use std::{fmt::Write, fs, path::PathBuf};
 
 #[derive(Debug, Default)]
-struct ClassInject {
+struct QuadSurfaceInject {
+    on_create_input_connection: String,
+}
+
+#[derive(Debug, Default)]
+struct MainActivityInject {
     body: String,
     on_resume: String,
     on_pause: String,
@@ -12,12 +17,16 @@ struct ClassInject {
 #[derive(Debug, Default)]
 struct Inject {
     imports: String,
-    main_activity: ClassInject,
+    quad_surface: QuadSurfaceInject,
+    main_activity: MainActivityInject,
 }
 
 impl Inject {
     fn add(&mut self, other: Inject) {
         self.imports.push_str(&other.imports);
+        self.quad_surface
+            .on_create_input_connection
+            .push_str(&other.quad_surface.on_create_input_connection);
         self.main_activity.body.push_str(&other.main_activity.body);
         self.main_activity
             .on_resume
@@ -46,6 +55,12 @@ fn parse_inject_template(file: &str) -> Inject {
             assert!(target.is_none());
 
             target = Some(&mut res.imports);
+            continue;
+        }
+        if line.starts_with("//%") && line.contains("QUAD_SURFACE_ON_CREATE_INPUT_CONNECTION") {
+            assert!(target.is_none());
+
+            target = Some(&mut res.quad_surface.on_create_input_connection);
             continue;
         }
         if line.starts_with("//%") && line.contains("MAIN_ACTIVITY_BODY") {
@@ -150,8 +165,13 @@ pub fn preprocess_main_activity(
         inject.add(parse_inject_template(&src));
     }
 
+    let q = &inject.quad_surface;
     let m = &inject.main_activity;
     let res = res.replace("//% IMPORTS", &inject.imports);
+    let res = res.replace(
+        "//% QUAD_SURFACE_ON_CREATE_INPUT_CONNECTION",
+        &q.on_create_input_connection,
+    );
     let res = res.replace("//% MAIN_ACTIVITY_BODY", &m.body);
     let res = res.replace("//% MAIN_ACTIVITY_ON_RESUME", &m.on_resume);
     let res = res.replace("//% MAIN_ACTIVITY_ON_PAUSE", &m.on_pause);
