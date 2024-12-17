@@ -146,7 +146,7 @@ fn cli() -> Command {
             cli_build(),
             cli_install(),
             cli_run(),
-            cli_logcat(),
+            // cli_logcat(),
         ])
 }
 
