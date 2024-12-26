@@ -146,7 +146,7 @@ fn cli() -> Command {
             cli_build(),
             cli_install(),
             cli_run(),
-            // cli_logcat(),
+            cli_logcat(),
         ])
 }
 
@@ -308,7 +308,7 @@ run. If you're passing arguments to both Cargo and the binary, the ones after
 
 fn cli_logcat() -> Command {
     Command::new("logcat")
-        .alias("r")
+        .alias("lc")
         .about("Print Android log")
         .arg_message_format()
 }
