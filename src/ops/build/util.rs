@@ -224,6 +224,7 @@ pub fn find_package_root_path(
         &specs,
         resolver::HasDevUnits::No,
         resolver::ForceAllTargets::No,
+        false, // dry-run
     )
     .unwrap();
 
@@ -321,6 +322,7 @@ pub fn collect_java_files(workspace: &Workspace, config: &AndroidConfig) -> Java
         &specs,
         resolver::HasDevUnits::No,
         resolver::ForceAllTargets::No,
+        false, // dry-run
     )
     .unwrap();
 
